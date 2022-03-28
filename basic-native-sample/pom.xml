@@ -105,7 +105,10 @@
 							<imageName>${project.artifactId}</imageName>
 							<mainClass>${main.class}</mainClass>
 							<buildArgs>
-								<buildArg>--allow-incomplete-classpath --report-unsupported-elements-at-runtime --no-fallback --install-exit-handlers</buildArg>
+								<buildArg>--allow-incomplete-classpath</buildArg>
+								<buildArg>--report-unsupported-elements-at-runtime</buildArg>
+								<buildArg>--no-fallback</buildArg>
+								<buildArg>--install-exit-handlers</buildArg>
 							</buildArgs>
 						</configuration>
 					</plugin>
