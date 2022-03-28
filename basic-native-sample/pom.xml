@@ -110,6 +110,7 @@
 								<buildArg>--no-fallback</buildArg>
 								<buildArg>--install-exit-handlers</buildArg>
 								<buildArg>-H:+PrintAnalysisCallTree</buildArg>
+								<buildArg>--initialize-at-build-time=org.springframework.core.NativeDetector</buildArg>
 							</buildArgs>
 						</configuration>
 					</plugin>
