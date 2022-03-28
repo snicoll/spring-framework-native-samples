@@ -105,7 +105,12 @@
 							<imageName>${project.artifactId}</imageName>
 							<mainClass>${main.class}</mainClass>
 							<buildArgs>
-								<buildArg>--allow-incomplete-classpath --report-unsupported-elements-at-runtime --no-fallback --install-exit-handlers</buildArg>
+								<buildArg>--allow-incomplete-classpath</buildArg>
+								<buildArg>--report-unsupported-elements-at-runtime</buildArg>
+								<buildArg>--no-fallback</buildArg>
+								<buildArg>--install-exit-handlers</buildArg>
+								<buildArg>-H:+PrintAnalysisCallTree</buildArg>
+								<buildArg>--initialize-at-build-time=org.springframework.core.NativeDetector</buildArg>
 							</buildArgs>
 						</configuration>
 					</plugin>
