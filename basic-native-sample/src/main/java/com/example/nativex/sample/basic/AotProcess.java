@@ -82,7 +82,6 @@ public class AotProcess {
 		List<Path> sourceFiles = new ArrayList<>();
 		for (JavaFile source : sources) {
 			try {
-				source.writeTo(this.generatedSources);
 				sourceFiles.add(source.writeToPath(this.generatedSources));
 			}
 			catch (IOException ex) {
