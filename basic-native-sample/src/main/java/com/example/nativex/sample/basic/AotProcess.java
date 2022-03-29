@@ -55,8 +55,8 @@ public class AotProcess {
 		this.artifactId = builder.artifactId;
 	}
 
-	public static Builder ofNamingStrategy(Function<String, ClassName> generatedTypeFactory) {
-		return new Builder(generatedTypeFactory);
+	public static Builder configure() {
+		return new Builder();
 	}
 
 	public void run(GenericApplicationContext applicationContext, String packageName) throws IOException {
@@ -146,7 +146,7 @@ public class AotProcess {
 
 	public static class Builder {
 
-		private final Function<String, ClassName> generatedTypeFactory;
+		private Function<String, ClassName> generatedTypeFactory;
 
 		private Path generatedSources;
 
@@ -158,8 +158,14 @@ public class AotProcess {
 
 		private String artifactId;
 
-		public Builder(Function<String, ClassName> generatedTypeFactory) {
+		public Builder withGeneratedTypeFactory(Function<String, ClassName> generatedTypeFactory) {
 			this.generatedTypeFactory = generatedTypeFactory;
+			return this;
+		}
+
+		public Builder withDefaultGeneratedTypeFactory(Class<?> application) {
+			return withGeneratedTypeFactory((packageName) -> ClassName.get(packageName,
+					application.getSimpleName() + "__ApplicationContextInitializer"));
 		}
 
 		public Builder withMavenBuildConventions() {

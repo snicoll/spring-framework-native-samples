@@ -9,7 +9,6 @@ import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.core.NativeDetector;
-import org.springframework.javapoet.ClassName;
 
 @Configuration(proxyBeanMethods = false)
 @ComponentScan
@@ -40,9 +39,7 @@ public class BasicApplication {
 	}
 
 	private static void generateAot() throws IOException {
-		AotProcess process = AotProcess
-				.ofNamingStrategy((packageName) -> ClassName.get(packageName,
-						BasicApplication.class.getSimpleName() + "__ApplicationContextInitializer"))
+		AotProcess process = AotProcess.configure().withDefaultGeneratedTypeFactory(BasicApplication.class)
 				.withMavenBuildConventions().withProjectId("com.example", "basic-native-sample").build();
 		GenericApplicationContext applicationContext = prepareApplicationContext();
 		process.run(applicationContext, BasicApplication.class.getPackageName());
