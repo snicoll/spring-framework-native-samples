@@ -39,10 +39,10 @@ public class BasicApplication {
 	}
 
 	private static void generateAot() throws IOException {
-		AotProcess process = AotProcess.configure().withDefaultGeneratedTypeFactory(BasicApplication.class)
-				.withMavenBuildConventions().withProjectId("com.example", "basic-native-sample").build();
+		AotProcess process = AotProcess.configure().withApplication(BasicApplication.class).withMavenBuildConventions()
+				.withProjectId("com.example", "basic-native-sample").build();
 		GenericApplicationContext applicationContext = prepareApplicationContext();
-		process.run(applicationContext, BasicApplication.class.getPackageName());
+		process.performAotProcessing(applicationContext);
 	}
 
 	@SuppressWarnings("unchecked")
