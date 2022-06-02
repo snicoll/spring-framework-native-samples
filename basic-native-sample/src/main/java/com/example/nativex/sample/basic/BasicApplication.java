@@ -2,39 +2,29 @@ package com.example.nativex.sample.basic;
 
 import java.io.IOException;
 
-import org.springframework.beans.BeanUtils;
-import org.springframework.context.ApplicationContextInitializer;
+import org.springframework.aot.AotDetector;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.aot.ApplicationContextAotInitializer;
 import org.springframework.context.support.GenericApplicationContext;
-import org.springframework.core.NativeDetector;
 
 @Configuration(proxyBeanMethods = false)
 @ComponentScan
 public class BasicApplication {
 
 	public static void main(String[] args) throws Exception {
-		if (NativeDetector.inNativeImage()) {
+		if (AotDetector.useGeneratedArtifacts()) {
 			System.out.println("Run optimized application");
 			runAot();
 		}
+		else if (args.length == 1 && args[0].equals("generateAot")) {
+			System.out.println("Optimizing application for Native");
+			generateAot();
+		}
 		else {
-			if (args.length == 1) {
-				String command = args[0];
-				if (command.equals("generateAot")) {
-					System.out.println("Optimizing application for Native");
-					generateAot();
-				}
-				else if (command.equals("runAot")) {
-					System.out.println("Run optimized application");
-					runAot();
-				}
-			}
-			else {
-				System.out.println("Run regular application");
-				prepareApplicationContext().refresh();
-			}
+			System.out.println("Run regular application");
+			prepareApplicationContext().refresh();
 		}
 	}
 
@@ -45,12 +35,10 @@ public class BasicApplication {
 		process.performAotProcessing(applicationContext);
 	}
 
-	@SuppressWarnings("unchecked")
 	private static void runAot() throws ClassNotFoundException {
 		GenericApplicationContext context = new GenericApplicationContext();
-		Class<? extends ApplicationContextInitializer<GenericApplicationContext>> initializer = (Class<? extends ApplicationContextInitializer<GenericApplicationContext>>) Class
-				.forName(BasicApplication.class.getName() + "__ApplicationContextInitializer");
-		BeanUtils.instantiateClass(initializer).initialize(context);
+		new ApplicationContextAotInitializer().initialize(context,
+				BasicApplication.class.getName() + "__ApplicationContextInitializer");
 		context.refresh();
 	}
 
