@@ -48,6 +48,8 @@ public class AotProcess {
 
 	private final Path classOutput;
 
+	private final Path classpathDir;
+
 	private final String groupId;
 
 	private final String artifactId;
@@ -57,6 +59,7 @@ public class AotProcess {
 		this.sourceOutput = builder.sourceOutput;
 		this.resourceOutput = builder.resourceOutput;
 		this.classOutput = builder.classOutput;
+		this.classpathDir = builder.classpathDir;
 		this.groupId = builder.groupId;
 		this.artifactId = builder.artifactId;
 	}
@@ -66,6 +69,7 @@ public class AotProcess {
 	}
 
 	public void performAotProcessing(GenericApplicationContext applicationContext) throws IOException {
+		cleanExistingOutput(this.sourceOutput, this.resourceOutput, this.classOutput);
 		FileSystemGeneratedFiles generatedFiles = new FileSystemGeneratedFiles(this::getRoot);
 		DefaultGenerationContext generationContext = new DefaultGenerationContext(generatedFiles);
 		ApplicationContextAotGenerator generator = new ApplicationContextAotGenerator();
@@ -77,7 +81,19 @@ public class AotProcess {
 		writeHints(generationContext.getRuntimeHints());
 		writeNativeImageProperties();
 		compileSourceFiles();
-		copyResources();
+		copyToClasspathDir(this.resourceOutput);
+		copyToClasspathDir(this.classOutput);
+	}
+
+	private void cleanExistingOutput(Path... paths) {
+		for (Path path : paths) {
+			try {
+				FileSystemUtils.deleteRecursively(path);
+			}
+			catch (IOException ex) {
+				throw new RuntimeException("Failed to delete existing output in '" + path + "'");
+			}
+		}
 	}
 
 	private Path getRoot(Kind kind) {
@@ -106,7 +122,7 @@ public class AotProcess {
 		}
 		JavaCompiler compiler = ToolProvider.getSystemJavaCompiler();
 		try (StandardJavaFileManager fm = compiler.getStandardFileManager(null, null, null)) {
-			List<String> options = List.of("-d", this.classOutput.toAbsolutePath().toString());
+			List<String> options = List.of("-d", this.classpathDir.toAbsolutePath().toString());
 			Iterable<? extends JavaFileObject> compilationUnits = fm.getJavaFileObjectsFromPaths(sourceFiles);
 			Errors errors = new Errors();
 			CompilationTask task = compiler.getTask(null, fm, errors, options, null, compilationUnits);
@@ -117,8 +133,10 @@ public class AotProcess {
 		}
 	}
 
-	private void copyResources() throws IOException {
-		FileSystemUtils.copyRecursively(this.resourceOutput, this.classOutput);
+	private void copyToClasspathDir(Path directory) throws IOException {
+		if (Files.exists(directory) && Files.isDirectory(directory)) {
+			FileSystemUtils.copyRecursively(directory, this.classpathDir);
+		}
 	}
 
 	private void writeHints(RuntimeHints hints) {
@@ -191,6 +209,8 @@ public class AotProcess {
 
 		private Path classOutput;
 
+		private Path classpathDir;
+
 		private String groupId;
 
 		private String artifactId;
@@ -202,9 +222,9 @@ public class AotProcess {
 
 		public Builder withMavenBuildConventions() {
 			Path target = Paths.get("").resolve("target");
-			Path aot = target.resolve("spring-aot/main");
+			Path aot = target.resolve("spring-aot").resolve("main");
 			return withSourceOutput(aot.resolve("sources")).withResourceOutput(aot.resolve("resources"))
-					.withClassOutput(target.resolve("classes"));
+					.withClassOutput(aot.resolve("classes")).withClasspathDir(target.resolve("classes"));
 		}
 
 		public Builder withSourceOutput(Path sourceOutput) {
@@ -219,6 +239,11 @@ public class AotProcess {
 
 		public Builder withClassOutput(Path classOutput) {
 			this.classOutput = classOutput;
+			return this;
+		}
+
+		public Builder withClasspathDir(Path classpathDir) {
+			this.classpathDir = classpathDir;
 			return this;
 		}
 
