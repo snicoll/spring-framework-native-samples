@@ -6,7 +6,7 @@ import org.springframework.aot.AotDetector;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.aot.ApplicationContextAotInitializer;
+import org.springframework.context.aot.AotApplicationContextInitializer;
 import org.springframework.context.support.GenericApplicationContext;
 
 @Configuration(proxyBeanMethods = false)
@@ -35,10 +35,11 @@ public class BasicApplication {
 		process.performAotProcessing(applicationContext);
 	}
 
-	private static void runAot() throws ClassNotFoundException {
+	private static void runAot() {
 		GenericApplicationContext context = new GenericApplicationContext();
-		new ApplicationContextAotInitializer().initialize(context,
-				BasicApplication.class.getName() + "__ApplicationContextInitializer");
+		AotApplicationContextInitializer
+				.forInitializerClasses(BasicApplication.class.getName() + "__ApplicationContextInitializer")
+				.initialize(context);
 		context.refresh();
 	}
 

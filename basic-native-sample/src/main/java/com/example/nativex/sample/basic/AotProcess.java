@@ -8,7 +8,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
-import java.util.function.Consumer;
 
 import javax.tools.Diagnostic;
 import javax.tools.DiagnosticListener;
@@ -18,10 +17,10 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
+import org.springframework.aot.generate.ClassNameGenerator;
 import org.springframework.aot.generate.DefaultGenerationContext;
 import org.springframework.aot.generate.FileSystemGeneratedFiles;
 import org.springframework.aot.generate.GeneratedFiles.Kind;
-import org.springframework.aot.hint.ExecutableHint;
 import org.springframework.aot.hint.ExecutableMode;
 import org.springframework.aot.hint.ReflectionHints;
 import org.springframework.aot.hint.RuntimeHints;
@@ -36,9 +35,6 @@ import org.springframework.util.FileSystemUtils;
  * @author Stephane Nicoll
  */
 public class AotProcess {
-
-	private static final Consumer<ExecutableHint.Builder> INVOKE_CONSTRUCTOR_HINT = (hint) -> hint
-			.setModes(ExecutableMode.INVOKE);
 
 	private final Class<?> application;
 
@@ -71,11 +67,10 @@ public class AotProcess {
 	public void performAotProcessing(GenericApplicationContext applicationContext) throws IOException {
 		cleanExistingOutput(this.sourceOutput, this.resourceOutput, this.classOutput);
 		FileSystemGeneratedFiles generatedFiles = new FileSystemGeneratedFiles(this::getRoot);
-		DefaultGenerationContext generationContext = new DefaultGenerationContext(generatedFiles);
+		DefaultGenerationContext generationContext = new DefaultGenerationContext(
+				new ClassNameGenerator(ClassName.get(this.application)), generatedFiles);
 		ApplicationContextAotGenerator generator = new ApplicationContextAotGenerator();
-		ClassName generatedInitializerClassName = generationContext.getClassNameGenerator()
-				.generateClassName(this.application, "ApplicationContextInitializer");
-		generator.generateApplicationContext(applicationContext, generationContext, generatedInitializerClassName);
+		ClassName generatedInitializerClassName = generator.processAheadOfTime(applicationContext, generationContext);
 		registerEntryPointHint(generationContext, generatedInitializerClassName);
 		generationContext.writeGeneratedContent();
 		writeHints(generationContext.getRuntimeHints());
@@ -109,10 +104,9 @@ public class AotProcess {
 		TypeReference generatedType = TypeReference.of(generatedInitializerClassName.canonicalName());
 		TypeReference applicationType = TypeReference.of(this.application);
 		ReflectionHints reflection = generationContext.getRuntimeHints().reflection();
-		reflection.registerType(applicationType, (hint) -> {
-		});
+		reflection.registerType(applicationType);
 		reflection.registerType(generatedType, (hint) -> hint.onReachableType(applicationType)
-				.withConstructor(Collections.emptyList(), INVOKE_CONSTRUCTOR_HINT));
+				.withConstructor(Collections.emptyList(), ExecutableMode.INVOKE));
 	}
 
 	private void compileSourceFiles() throws IOException {
