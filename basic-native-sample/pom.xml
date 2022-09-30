@@ -63,10 +63,10 @@
 						<artifactId>native-maven-plugin</artifactId>
 						<executions>
 							<execution>
-								<id>build-native</id>
+								<id>native-compile</id>
 								<phase>package</phase>
 								<goals>
-									<goal>build</goal>
+									<goal>compile-no-fork</goal>
 								</goals>
 							</execution>
 						</executions>
