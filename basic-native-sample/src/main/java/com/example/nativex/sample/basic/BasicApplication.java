@@ -1,7 +1,5 @@
 package com.example.nativex.sample.basic;
 
-import java.io.IOException;
-
 import org.springframework.aot.AotDetector;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
@@ -13,7 +11,7 @@ import org.springframework.context.support.GenericApplicationContext;
 @ComponentScan
 public class BasicApplication {
 
-	public static void main(String[] args) throws Exception {
+	public static void main(String[] args) {
 		if (AotDetector.useGeneratedArtifacts()) {
 			System.out.println("Run optimized application");
 			runAot();
@@ -28,11 +26,10 @@ public class BasicApplication {
 		}
 	}
 
-	private static void generateAot() throws IOException {
+	private static void generateAot() {
 		AotProcess process = AotProcess.configure().withApplication(BasicApplication.class).withMavenBuildConventions()
 				.withProjectId("com.example", "basic-native-sample").build();
-		GenericApplicationContext applicationContext = prepareApplicationContext();
-		process.performAotProcessing(applicationContext);
+		process.process();
 	}
 
 	private static void runAot() {

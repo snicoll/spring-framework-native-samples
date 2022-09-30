@@ -1,11 +1,10 @@
 package com.example.nativex.sample.basic;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
 
@@ -17,26 +16,16 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
-import org.springframework.aot.generate.ClassNameGenerator;
-import org.springframework.aot.generate.DefaultGenerationContext;
-import org.springframework.aot.generate.FileSystemGeneratedFiles;
-import org.springframework.aot.generate.GeneratedFiles.Kind;
-import org.springframework.aot.hint.ExecutableMode;
-import org.springframework.aot.hint.ReflectionHints;
-import org.springframework.aot.hint.RuntimeHints;
-import org.springframework.aot.hint.TypeReference;
-import org.springframework.aot.nativex.FileNativeConfigurationWriter;
-import org.springframework.context.aot.ApplicationContextAotGenerator;
+import org.springframework.context.aot.AotProcessor;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.javapoet.ClassName;
 import org.springframework.util.FileSystemUtils;
+import org.springframework.util.ReflectionUtils;
 
 /**
  * @author Stephane Nicoll
  */
-public class AotProcess {
-
-	private final Class<?> application;
+public class AotProcess extends AotProcessor {
 
 	private final Path sourceOutput;
 
@@ -46,67 +35,46 @@ public class AotProcess {
 
 	private final Path classpathDir;
 
-	private final String groupId;
-
-	private final String artifactId;
-
 	public AotProcess(Builder builder) {
-		this.application = builder.application;
+		super(builder.application, builder.sourceOutput, builder.resourceOutput, builder.classOutput, builder.groupId,
+				builder.artifactId);
 		this.sourceOutput = builder.sourceOutput;
 		this.resourceOutput = builder.resourceOutput;
 		this.classOutput = builder.classOutput;
 		this.classpathDir = builder.classpathDir;
-		this.groupId = builder.groupId;
-		this.artifactId = builder.artifactId;
 	}
 
 	public static Builder configure() {
 		return new Builder();
 	}
 
-	public void performAotProcessing(GenericApplicationContext applicationContext) throws IOException {
-		cleanExistingOutput(this.sourceOutput, this.resourceOutput, this.classOutput);
-		FileSystemGeneratedFiles generatedFiles = new FileSystemGeneratedFiles(this::getRoot);
-		DefaultGenerationContext generationContext = new DefaultGenerationContext(
-				new ClassNameGenerator(ClassName.get(this.application)), generatedFiles);
-		ApplicationContextAotGenerator generator = new ApplicationContextAotGenerator();
-		ClassName generatedInitializerClassName = generator.processAheadOfTime(applicationContext, generationContext);
-		registerEntryPointHint(generationContext, generatedInitializerClassName);
-		generationContext.writeGeneratedContent();
-		writeHints(generationContext.getRuntimeHints());
-		writeNativeImageProperties();
-		compileSourceFiles();
-		copyToClasspathDir(this.resourceOutput);
-		copyToClasspathDir(this.classOutput);
+	@Override
+	public ClassName process() {
+		ClassName className = super.process();
+		compileAndCopyAssets();
+		return className;
 	}
 
-	private void cleanExistingOutput(Path... paths) {
-		for (Path path : paths) {
-			try {
-				FileSystemUtils.deleteRecursively(path);
-			}
-			catch (IOException ex) {
-				throw new RuntimeException("Failed to delete existing output in '" + path + "'");
-			}
+	@Override
+	protected GenericApplicationContext prepareApplicationContext(Class<?> application) {
+		Method method = ReflectionUtils.findMethod(application, "prepareApplicationContext");
+		if (method == null) {
+			throw new IllegalArgumentException(
+					"Expected a prepareApplicationContext() method on " + application.getName());
 		}
+		ReflectionUtils.makeAccessible(method);
+		return (GenericApplicationContext) ReflectionUtils.invokeMethod(method, null);
 	}
 
-	private Path getRoot(Kind kind) {
-		return switch (kind) {
-		case SOURCE -> this.sourceOutput;
-		case RESOURCE -> this.resourceOutput;
-		case CLASS -> this.classOutput;
-		};
-	}
-
-	private void registerEntryPointHint(DefaultGenerationContext generationContext,
-			ClassName generatedInitializerClassName) {
-		TypeReference generatedType = TypeReference.of(generatedInitializerClassName.canonicalName());
-		TypeReference applicationType = TypeReference.of(this.application);
-		ReflectionHints reflection = generationContext.getRuntimeHints().reflection();
-		reflection.registerType(applicationType);
-		reflection.registerType(generatedType, (hint) -> hint.onReachableType(applicationType)
-				.withConstructor(Collections.emptyList(), ExecutableMode.INVOKE));
+	private void compileAndCopyAssets() {
+		try {
+			compileSourceFiles();
+			copyToClasspathDir(this.resourceOutput);
+			copyToClasspathDir(this.classOutput);
+		}
+		catch (IOException ex) {
+			throw new IllegalStateException("Failed to process assets", ex);
+		}
 	}
 
 	private void compileSourceFiles() throws IOException {
@@ -130,36 +98,6 @@ public class AotProcess {
 	private void copyToClasspathDir(Path directory) throws IOException {
 		if (Files.exists(directory) && Files.isDirectory(directory)) {
 			FileSystemUtils.copyRecursively(directory, this.classpathDir);
-		}
-	}
-
-	private void writeHints(RuntimeHints hints) {
-		FileNativeConfigurationWriter writer = new FileNativeConfigurationWriter(this.resourceOutput, this.groupId,
-				this.artifactId);
-		writer.write(hints);
-	}
-
-	private void writeNativeImageProperties() {
-		List<String> args = new ArrayList<>();
-		args.add("-H:Class=" + this.application.getName());
-		args.add("--allow-incomplete-classpath");
-		args.add("--report-unsupported-elements-at-runtime");
-		args.add("--no-fallback");
-		args.add("--install-exit-handlers");
-		StringBuilder sb = new StringBuilder();
-		sb.append("Args = ");
-		sb.append(String.join(String.format(" \\%n"), args));
-		Path file = this.resourceOutput
-				.resolve("META-INF/native-image/" + this.groupId + "/" + this.artifactId + "/native-image.properties");
-		try {
-			if (!Files.exists(file)) {
-				Files.createDirectories(file.getParent());
-				Files.createFile(file);
-			}
-			Files.writeString(file, sb.toString());
-		}
-		catch (IOException ex) {
-			throw new IllegalStateException("Failed to write native-image properties", ex);
 		}
 	}
 
