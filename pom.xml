@@ -14,7 +14,7 @@
 		<java.version>17</java.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-		<native-build-tools-plugin.version>0.9.14</native-build-tools-plugin.version>
+		<native-build-tools-plugin.version>0.9.19</native-build-tools-plugin.version>
 		<spring-framework.version>6.0.2</spring-framework.version>
 		<spring-javaformat.version>0.0.35</spring-javaformat.version>
 	</properties>
