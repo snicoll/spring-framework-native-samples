@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.List;
 import java.util.Locale;
 
@@ -16,7 +15,7 @@ import javax.tools.JavaFileObject;
 import javax.tools.StandardJavaFileManager;
 import javax.tools.ToolProvider;
 
-import org.springframework.context.aot.AotProcessor;
+import org.springframework.context.aot.ContextAotProcessor;
 import org.springframework.context.support.GenericApplicationContext;
 import org.springframework.javapoet.ClassName;
 import org.springframework.util.FileSystemUtils;
@@ -25,60 +24,42 @@ import org.springframework.util.ReflectionUtils;
 /**
  * @author Stephane Nicoll
  */
-public class AotProcess extends AotProcessor {
-
-	private final Path sourceOutput;
-
-	private final Path resourceOutput;
-
-	private final Path classOutput;
+public class AotProcess extends ContextAotProcessor {
 
 	private final Path classpathDir;
 
-	public AotProcess(Builder builder) {
-		super(builder.application, builder.sourceOutput, builder.resourceOutput, builder.classOutput, builder.groupId,
-				builder.artifactId);
-		this.sourceOutput = builder.sourceOutput;
-		this.resourceOutput = builder.resourceOutput;
-		this.classOutput = builder.classOutput;
-		this.classpathDir = builder.classpathDir;
-	}
-
-	public static Builder configure() {
-		return new Builder();
+	protected AotProcess(Class<?> applicationClass, Settings settings, Path classpathDir) {
+		super(applicationClass, settings);
+		this.classpathDir = classpathDir;
 	}
 
 	@Override
-	public ClassName process() {
-		ClassName className = super.process();
-		compileAndCopyAssets();
-		return className;
-	}
-
-	@Override
-	protected GenericApplicationContext prepareApplicationContext(Class<?> application) {
-		Method method = ReflectionUtils.findMethod(application, "prepareApplicationContext");
+	protected GenericApplicationContext prepareApplicationContext(Class<?> applicationClass) {
+		Method method = ReflectionUtils.findMethod(applicationClass, "prepareApplicationContext");
 		if (method == null) {
 			throw new IllegalArgumentException(
-					"Expected a prepareApplicationContext() method on " + application.getName());
+					"Expected a prepareApplicationContext() method on " + applicationClass.getName());
 		}
 		ReflectionUtils.makeAccessible(method);
 		return (GenericApplicationContext) ReflectionUtils.invokeMethod(method, null);
 	}
 
-	private void compileAndCopyAssets() {
+	@Override
+	protected ClassName doProcess() {
+		ClassName className = super.doProcess();
 		try {
 			compileSourceFiles();
-			copyToClasspathDir(this.resourceOutput);
-			copyToClasspathDir(this.classOutput);
+			copyToClasspathDir(getSettings().getResourceOutput());
+			copyToClasspathDir(getSettings().getClassOutput());
 		}
 		catch (IOException ex) {
 			throw new IllegalStateException("Failed to process assets", ex);
 		}
+		return className;
 	}
 
 	private void compileSourceFiles() throws IOException {
-		List<Path> sourceFiles = Files.walk(this.sourceOutput).filter(Files::isRegularFile).toList();
+		List<Path> sourceFiles = Files.walk(getSettings().getSourceOutput()).filter(Files::isRegularFile).toList();
 		if (sourceFiles.isEmpty()) {
 			return;
 		}
@@ -127,66 +108,6 @@ public class AotProcess extends AotProcessor {
 		@Override
 		public String toString() {
 			return this.message.toString();
-		}
-
-	}
-
-	public static class Builder {
-
-		private Class<?> application;
-
-		private Path sourceOutput;
-
-		private Path resourceOutput;
-
-		private Path classOutput;
-
-		private Path classpathDir;
-
-		private String groupId;
-
-		private String artifactId;
-
-		public Builder withApplication(Class<?> application) {
-			this.application = application;
-			return this;
-		}
-
-		public Builder withMavenBuildConventions() {
-			Path target = Paths.get("").resolve("target");
-			Path aot = target.resolve("spring-aot").resolve("main");
-			return withSourceOutput(aot.resolve("sources")).withResourceOutput(aot.resolve("resources"))
-					.withClassOutput(aot.resolve("classes")).withClasspathDir(target.resolve("classes"));
-		}
-
-		public Builder withSourceOutput(Path sourceOutput) {
-			this.sourceOutput = sourceOutput;
-			return this;
-		}
-
-		public Builder withResourceOutput(Path resourceOutput) {
-			this.resourceOutput = resourceOutput;
-			return this;
-		}
-
-		public Builder withClassOutput(Path classOutput) {
-			this.classOutput = classOutput;
-			return this;
-		}
-
-		public Builder withClasspathDir(Path classpathDir) {
-			this.classpathDir = classpathDir;
-			return this;
-		}
-
-		public Builder withProjectId(String groupId, String artifactId) {
-			this.groupId = groupId;
-			this.artifactId = artifactId;
-			return this;
-		}
-
-		public AotProcess build() {
-			return new AotProcess(this);
 		}
 
 	}

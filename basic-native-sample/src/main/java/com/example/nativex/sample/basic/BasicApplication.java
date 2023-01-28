@@ -1,9 +1,13 @@
 package com.example.nativex.sample.basic;
 
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 import org.springframework.aot.AotDetector;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.aot.AbstractAotProcessor.Settings;
 import org.springframework.context.aot.AotApplicationContextInitializer;
 import org.springframework.context.support.GenericApplicationContext;
 
@@ -27,8 +31,12 @@ public class BasicApplication {
 	}
 
 	private static void generateAot() {
-		AotProcess process = AotProcess.configure().withApplication(BasicApplication.class).withMavenBuildConventions()
-				.withProjectId("com.example", "basic-native-sample").build();
+		Path target = Paths.get("").resolve("target");
+		Path aot = target.resolve("spring-aot").resolve("main");
+		Settings settings = Settings.builder().sourceOutput(aot.resolve("sources"))
+				.resourceOutput(aot.resolve("resources")).classOutput(aot.resolve("classes")).groupId("com.example")
+				.artifactId("basic-native-sample").build();
+		AotProcess process = new AotProcess(BasicApplication.class, settings, target.resolve("classes"));
 		process.process();
 	}
 
