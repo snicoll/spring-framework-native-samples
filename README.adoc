@@ -1,0 +1,35 @@
+= Spring Framework Native Samples
+
+This repository provides a showcase of building a native image for a plain Spring Framework application.
+
+Building a native image for a Spring Application requires the following:
+
+* Invoking AOT on the `ApplicationContext`.
+* Compiling the generated code.
+* Copying bytecode and generated resources so that it is bundled properly.
+
+Invoking AOT as an external process happens via an extension of `org.springframework.context.aot.ContextAotProcessor`.
+This repository provides such an extension that also perform the two other steps.
+
+The `exec-maven-plugin` can be used to invoke such process at the appropriate time.
+
+In this example, the main "app" must have a method with the following signature:
+
+[indent=0]
+----
+    private static GenericApplicationContext prepareApplicationContext() { ... }
+----
+
+== Running
+
+To run the sample you need first to install GraalVM.
+Make sure that `native-image` is available in your path:
+
+[indent=0]
+----
+    $ ./mvnw package -Pnative
+----
+
+== Resources
+
+* https://docs.spring.io/spring-framework/docs/current/reference/html/core.html#core.aot[Spring Framework AOT section]
