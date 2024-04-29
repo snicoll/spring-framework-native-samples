@@ -33,9 +33,13 @@ public class BasicApplication {
 	private static void generateAot() {
 		Path target = Paths.get("").resolve("target");
 		Path aot = target.resolve("spring-aot").resolve("main");
-		Settings settings = Settings.builder().sourceOutput(aot.resolve("sources"))
-				.resourceOutput(aot.resolve("resources")).classOutput(aot.resolve("classes")).groupId("com.example")
-				.artifactId("basic-native-sample").build();
+		Settings settings = Settings.builder()
+			.sourceOutput(aot.resolve("sources"))
+			.resourceOutput(aot.resolve("resources"))
+			.classOutput(aot.resolve("classes"))
+			.groupId("com.example")
+			.artifactId("basic-native-sample")
+			.build();
 		AotProcess process = new AotProcess(BasicApplication.class, settings, target.resolve("classes"));
 		process.process();
 	}
@@ -43,8 +47,8 @@ public class BasicApplication {
 	private static void runAot() {
 		GenericApplicationContext context = new GenericApplicationContext();
 		AotApplicationContextInitializer
-				.forInitializerClasses(BasicApplication.class.getName() + "__ApplicationContextInitializer")
-				.initialize(context);
+			.forInitializerClasses(BasicApplication.class.getName() + "__ApplicationContextInitializer")
+			.initialize(context);
 		context.refresh();
 	}
 
